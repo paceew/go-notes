@@ -199,7 +199,7 @@ func main() {
 
 图4的流程里当执行完成后把G仍到`gfree`队列里。注意此时G并没有销毁(只重置了G的栈以及状态)，当再次创建G的时候优先从`gfree`列表里获取，这样就起到了复用G的作用，避免反复与系统交互创建内存。
 
->`ISSUE_Q` : gfree不会立即销毁G达到复用G的效果，那么什么时候会去销毁G呢？------如果 P 本地队列中 gFree 超过 64 个，仅会在 P 本地队列中保存 32 个，把超过的 G 都放入到全局闲置队列 sched.gFree,而sched.gFree会在每次GC的时候进行释放-->`runtime->mgcmark.go->markrootFreeGStacks()`
+>`ISSUE_Q` : gfree不会立即销毁G达到复用G的效果，那么什么时候会去销毁G呢？------如果 P 本地队列中 gFree 超过 64 个，仅会在 P 本地队列中保存 32 个，把超过的 G 都放入到全局闲置队列 sched.gFree；或是每次gc会把p.gFree放到sched.gFree，而sched.gFree会在每次GC的时候进行释放-->`runtime->mgcmark.go->markrootFreeGStacks()`
 
 M即启动后处于一个自循环状态，执行完一个G之后继续执行下一个G，反复上面的图2~图4过程。当第一个M正在繁忙而又有新的G需要执行时，会再开启一个M来执行。
 
@@ -1041,7 +1041,7 @@ func goschedImpl(gp *g) {
 }
 ```
 我们都知道Go的调度是非抢占式的，要想实现G不被长时间，就只能主动触发抢占，而Go触发抢占的实际就是在栈扩张的时候，在`newstack`新创建栈空间的时候检测是否有抢占标记(也就是`gp.stackguard0`是否等于`stackPreempt`)，如果有则通过`goschedImpl`方法再次进入到熟悉的`schedule`调度循环。
->ISSUE_Q:`newstack`在什么情况下会被调用？(即是G在什么时候会被抢占？)
+>ISSUE_Q:`newstack`在什么情况下会被调用？(即是G在什么时候会被抢占？)进行函数调用等会发生栈扩张，也就是调用`newstack`
 
 ### 系统调用让出CPU
 
